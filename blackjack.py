@@ -11,9 +11,11 @@ WIDTH, HEIGHT = 900, 500
 
 BET_FONT = pygame.font.SysFont('comicsans', 40)
 PLAYER_CHIPS_FONT = pygame.font.SysFont('comicsans', 30)
+WINNER_FONT = pygame.font.SysFont('comicsans', 20)
 
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Chris' Blackgame v2.0")
+BUTTON_AREA = (0, 0, 200, HEIGHT)
 
 GREEN = (0 , 255, 0)
 WHITE = (255, 255, 255)
@@ -78,6 +80,7 @@ DEAL_POS = (10, 400)
 BET_POS = (65, 300)
 FIRST_CARD = (300, 50)
 PLAYER_CHIPS_POS = (10, 450)
+WINNER_POS = (500,25)
 
 HIT_BUTTON = pygame.Rect(HIT_POS[0], HIT_POS[1], HIT_IMAGE.get_width(), HIT_IMAGE.get_height())
 STAND_BUTTON = pygame.Rect(STAND_POS[0], STAND_POS[1], STAND_IMAGE.get_width(), STAND_IMAGE.get_height())
@@ -221,7 +224,7 @@ def show_all(player,dealer):
 def check_for_blackjack(player_hand, dealer_hand, player_chips):
 	if dealer_hand.value == 21:
 		player_score = dealer_blackjack(player_hand, dealer_hand, player_chips)
-		playing = False
+		winner_text = 'Dealer BLACKJACK!  Player Loses {}!'.format(str(bet))
 	elif player_hand.value == 21:
 		player_score = player_blackjack(player_hand, dealer_hand, player_chips)
 		playing = False
@@ -275,10 +278,33 @@ def dealer_blackjack(player,dealer,chips):
 	player_score = chips.lose_bet()
 	return player_score
 	
-def push(player,dealer):
-	print('The player has ' + str(player.value))
-	print('The dealer has ' + str(dealer.value))
-	print('Push!')
+def determine_winner(player_hand, dealer_hand, player_chips):
+	# Run different winning scenarios
+	if dealer_hand.value > 21:
+		player_score = dealer_busts(player_hand, dealer_hand, player_chips)
+		winner_text = 'Dealer BUST!  Player Wins {}!'.format(str(player_chips.bet))
+	elif dealer_hand.value > player_hand.value:
+		player_score = dealer_wins(player_hand, dealer_hand, player_chips)
+		winner_text = 'Dealer WINS!  Player Loses {}!'.format(str(player_chips.bet))
+	elif dealer_hand.value < player_hand.value:
+		player_score = player_wins(player_hand, dealer_hand, player_chips)
+		winner_text = 'Player WINS!  Player Wins {}!'.format(str(player_chips.bet))
+	else:
+		winner_text = 'PUSH!  No winner!'
+	return winner_text
+
+def handle_blackjack(player_hand, dealer_hand, player_chips):
+	if player_hand.value == 21 or dealer_hand.value == 21:
+		if player_hand.value == 21 and dealer_hand.value == 21:
+			winner_text = 'Player and Dealer BOTH have BLACKJACK! PUSH!'
+		elif dealer_hand.value == 21:
+			player_score = dealer_blackjack(player_hand, dealer_hand, player_chips)
+			winner_text = 'Dealer BLACKJACK!  Player Loses {}!'.format(str(player_chips.bet))
+		elif player_hand.value == 21:
+			player_score = player_blackjack(player_hand, dealer_hand, player_chips)
+			winner_text = 'Player BLACKJACK!  Player Wins {}!'.format(str(player_chips.bet * 1.5))
+		return winner_text
+	return ''
 
 ##############################
 
@@ -289,8 +315,9 @@ def draw_card(card, card_num, player_position, hide_card):
 		card_image = pygame.image.load(os.path.join('.\images\cards', '{}{}.png'.format(CARD_MAP['suits'][card.suit], CARD_MAP['ranks'][card.rank])))
 	WIN.blit(card_image, (FIRST_CARD[0] + (25 * card_num), FIRST_CARD[1] + player_position + (25 * card_num)))
 
-def draw_window(player_hand, dealer_hand, player_chips, bet, dealer_show, _state):
+def draw_window(player_hand, dealer_hand, player_chips, bet, dealer_show, winner_text, _state):
 	WIN.fill(GREEN)
+	pygame.draw.rect(WIN, BLACK, BUTTON_AREA)
 	draw_bet = BET_FONT.render(str(bet), 1, WHITE)
 	WIN.blit(draw_bet, BET_POS)
 	draw_player_chips = PLAYER_CHIPS_FONT.render('Chips: '+str(player_chips.total), 1, WHITE)
@@ -303,6 +330,8 @@ def draw_window(player_hand, dealer_hand, player_chips, bet, dealer_show, _state
 		WIN.blit(STAND_GREY_IMAGE, STAND_POS)
 		WIN.blit(DD_GREY_IMAGE, DD_POS)
 		WIN.blit(SPLIT_GREY_IMAGE, SPLIT_POS)
+		draw_winner_text = WINNER_FONT.render(str(winner_text), 1, WHITE)
+		WIN.blit(draw_winner_text, WINNER_POS)
 		WIN.blit(DEAL_IMAGE, DEAL_POS)
 
 	elif _state == 'playing':
@@ -312,10 +341,9 @@ def draw_window(player_hand, dealer_hand, player_chips, bet, dealer_show, _state
 		WIN.blit(STAND_IMAGE, STAND_POS)
 		WIN.blit(DD_IMAGE, DD_POS)
 		WIN.blit(SPLIT_GREY_IMAGE, SPLIT_POS)
+		draw_winner_text = WINNER_FONT.render(str(winner_text), 1, WHITE)
+		WIN.blit(draw_winner_text, WINNER_POS)
 		WIN.blit(DEAL_GREY_IMAGE, DEAL_POS)
-
-
-
 		# Handle cards
 		pc = 0
 		for card in player_hand.cards:
@@ -330,15 +358,6 @@ def draw_window(player_hand, dealer_hand, player_chips, bet, dealer_show, _state
 				draw_card(card, dc, 0, hide_card=False) 
 			dc += 1
 
-	elif _state == 'determine winner':
-		WIN.blit(UP_IMAGE, UP_POS)
-		WIN.blit(DOWN_IMAGE, DOWN_POS)
-		WIN.blit(HIT_GREY_IMAGE, HIT_POS)
-		WIN.blit(STAND_GREY_IMAGE, STAND_POS)
-		WIN.blit(DD_GREY_IMAGE, DD_POS)
-		WIN.blit(SPLIT_GREY_IMAGE, SPLIT_POS)
-		WIN.blit(DEAL_IMAGE, DEAL_POS)
-
 	pygame.display.update()
 
 def main(player_chips):
@@ -350,6 +369,7 @@ def main(player_chips):
 	_state = 'taking bets' 
 	bet = 0
 	dealer_show = False
+	winner_text = ''
 
 	# Create & shuffle the deck, deal two cards to each player
 	deck = Deck()
@@ -372,6 +392,7 @@ def main(player_chips):
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:
 				run = False
+				pygame.quit()
 
 			if _state == 'taking bets':	
 				if event.type == pygame.MOUSEBUTTONDOWN:
@@ -385,67 +406,54 @@ def main(player_chips):
 							bet -= 1
 					# Clicked on Deal Button 
 					if DEAL_BUTTON.collidepoint((mouse[0], mouse[1])):
-						_state = 'playing'
-						player_chips.bet = bet
+						if bet == 0:
+							winner_text = "Place your bet!"
+						else:
+							player_chips.bet = bet
+							_state = 'playing'
+							winner_text = handle_blackjack(player_hand, dealer_hand, player_chips)
+							if 'BLACKJACK' in winner_text:
+								dealer_show = True
+								draw_window(player_hand, dealer_hand, player_chips, bet, dealer_show, winner_text, _state)
+								# Inform Player of their chips total 
+								print('\nYou have ${}'.format(player_chips.total))
+								time.sleep(3)
+								run = False
+								
 
 			if _state == 'playing':
-		
-				# hit stand double logic
 				if event.type == pygame.MOUSEBUTTONDOWN:
 					# Clicked on the Hit Button 
 					if HIT_BUTTON.collidepoint((mouse[0], mouse[1])):
 						# player_hand.add_card(deck.deal())
-						hit(deck, player_hand)
+						player_hand = hit(deck, player_hand)
+						if player_hand.value > 21:
+							player_score = player_busts(player_hand, dealer_hand, player_chips)
+							winner_text = 'Player BUST!  Player Loses {}!'.format(str(bet))
+							dealer_show = True
+							draw_window(player_hand, dealer_hand, player_chips, bet, dealer_show, winner_text, _state)
+							# Inform Player of their chips total 
+							print('\nYou have ${}'.format(player_chips.total))
+							time.sleep(3)
+							run = False
+
+					# Clicked on the Stand Button
 					if STAND_BUTTON.collidepoint((mouse[0], mouse[1])):
-						_state = 'determine winner'
+						# Play Dealer's hand until Dealer reaches 17
+						if player_hand.value < 21 and dealer_hand.value < 21:
+							while dealer_hand.value < 17:
+								dealer_hand = hit(deck, dealer_hand)
+						winner_text = determine_winner(player_hand, dealer_hand, player_chips)
 						dealer_show = True
+						draw_window(player_hand, dealer_hand, player_chips, bet, dealer_show, winner_text, _state)
+						# Inform Player of their chips total 
+						print('\nYou have ${}'.format(player_chips.total))
+						time.sleep(3)
+						run = False
 
-					if player_hand.value > 21:
-						player_score = player_busts(player_hand, dealer_hand, player_chips)
-						dealer_show = True
-						_state = 'reset'
+		draw_window(player_hand, dealer_hand, player_chips, bet, dealer_show, winner_text, _state)
 
-			if _state == 'determine winner':
-				
-				# If Player hasn't busted, play Dealer's hand until Dealer reaches 17
-				if player_hand.value < 21 and dealer_hand.value < 21:
-		
-					while dealer_hand.value < 17:
-						hit(deck, dealer_hand)
-			
-				# Run different winning scenarios
-				if dealer_hand.value > 21:
-					player_score = dealer_busts(player_hand, dealer_hand, player_chips)
-				elif dealer_hand.value > player_hand.value:
-					player_score = dealer_wins(player_hand, dealer_hand, player_chips)
-				elif dealer_hand.value < player_hand.value:
-					player_score = player_wins(player_hand, dealer_hand, player_chips)
-				else:
-					push(player_hand, dealer_hand)
-
-				# Inform Player of their chips total 
-				print('\nYou have ${}'.format(player_chips.total))
-				_state = 'reset'
-
-
-
-		draw_window(player_hand, dealer_hand, player_chips, bet, dealer_show, _state)
-
-		if _state == 'reset':
-			# Ask to play again
-			new_game = input('Would you like to player another hand? Y or N')
-			if new_game:
-				time.sleep(3)
-				main(player_chips)
-
-		#Handle dealer bj
-		if check_for_blackjack(player_hand, dealer_hand, player_chips):
-
-			_state = 'taking bets'
-			doubledown = False
-			dealer_show = False
-			bet = 0
-	pygame.quit()
+	main(player_chips)
 
 
 if __name__ == "__main__":
