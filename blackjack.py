@@ -81,6 +81,8 @@ BET_POS = (65, 300)
 FIRST_CARD = (300, 50)
 PLAYER_CHIPS_POS = (10, 450)
 WINNER_POS = (500,25)
+DEALER_SCORE_POS = (250,100)
+PLAYER_SCORE_POS = (250,300)
 
 HIT_BUTTON = pygame.Rect(HIT_POS[0], HIT_POS[1], HIT_IMAGE.get_width(), HIT_IMAGE.get_height())
 STAND_BUTTON = pygame.Rect(STAND_POS[0], STAND_POS[1], STAND_IMAGE.get_width(), STAND_IMAGE.get_height())
@@ -171,56 +173,6 @@ def hit(deck,hand):
 	hand.adjust_for_ace()
 	return hand
 
-def hit_or_stand(deck,hand,chips):
-	global playing # to control an upcoming while loop
-	global doubledown
-	
-	while True:
-		print("Player has {}".format(hand.value))
-		play = input("Hit, Stand or Double Down? Enter 'H', 'S' or 'D': " )
-		
-		if play[0].lower() == 'h':
-			hit(deck,hand)
-			break
-			
-		elif play[0].lower() == 's':
-			print("Player Stands! Dealer's turn\n")
-			playing = False
-			break
-		
-		elif play[0].lower() == 'd':
-			if (chips.bet * 2) > chips.total:
-				print("You dont have enough chips to double down!  Enter 'H' or 'S' only")
-				break
-			
-			print('Double Down!  One more card')
-			hit(deck,hand)
-			doubledown = True
-			playing = False
-			break
-		else:
-			print("Sorry I did not understand.  Enter 'H, 'S' or 'D' only!")
-
-def show_some(player,dealer):
-	
-	print('Dealer Hand:')
-	print('*ONE CARD HIDDEN*')
-	print(dealer.cards[1])
-	print('\n')
-	print('Players Hand:')
-	for card in player.cards:
-		print(card)
-	
-def show_all(player,dealer):
-	
-	print('Dealer Hand:')
-	for card in dealer.cards:
-		print(card)
-	print('\n')
-	print('Players Hand:')
-	for card in player.cards:
-		print(card)
-
 def check_for_blackjack(player_hand, dealer_hand, player_chips):
 	if dealer_hand.value == 21:
 		player_score = dealer_blackjack(player_hand, dealer_hand, player_chips)
@@ -235,46 +187,23 @@ def check_for_blackjack(player_hand, dealer_hand, player_chips):
 		pass
 
 def player_busts(player,dealer,chips):
-	print('The player has ' + str(player.value))
-	print('BUST!')
 	player_score = chips.lose_bet()
-	# if doubledown == True:
-	# 	player_score = chips.lose_bet()
 	return player_score
 
 def player_wins(player,dealer,chips):
-	print('The player has ' + str(player.value))
-	print('The dealer has ' + str(dealer.value))
-	print('Player Wins!')
-	player_score = chips.win_bet()
-	# if doubledown == True:
-	# 	player_score = chips.win_bet()
 	return player_score
 
 def player_blackjack(player,dealer,chips):
-	print('The player has BLACKJACK!')
 	player_score = chips.blackjack()
 	return player_score
 
 def dealer_busts(player,dealer,chips):
-	print('The dealer has ' + str(dealer.value))
-	print('Dealer BUST!  Player Wins!')
-	player_score = chips.win_bet()
-	# if doubledown == True:
-	# 	player_score = chips.win_bet()
 	return player_score
 	
 def dealer_wins(player,dealer,chips):
-	print('The player has ' + str(player.value))
-	print('The dealer has ' + str(dealer.value))
-	print('Dealer Wins!')
-	player_score = chips.lose_bet()
-	# if doubledown == True:
-	# 	player_score = chips.lose_bet()
 	return player_score
 
 def dealer_blackjack(player,dealer,chips):
-	print('The dealer has BLACKJACK!')
 	player_score = chips.lose_bet()
 	return player_score
 	
@@ -305,8 +234,6 @@ def handle_blackjack(player_hand, dealer_hand, player_chips):
 			winner_text = 'Player BLACKJACK!  Player Wins {}!'.format(str(player_chips.bet * 1.5))
 		return winner_text
 	return ''
-
-##############################
 
 def draw_card(card, card_num, player_position, hide_card):
 	if hide_card == True:
@@ -344,33 +271,28 @@ def draw_window(player_hand, dealer_hand, player_chips, bet, dealer_show, winner
 		draw_winner_text = WINNER_FONT.render(str(winner_text), 1, WHITE)
 		WIN.blit(draw_winner_text, WINNER_POS)
 		WIN.blit(DEAL_GREY_IMAGE, DEAL_POS)
+
 		# Handle cards
 		pc = 0
 		for card in player_hand.cards:
 			draw_card(card, pc, 200, hide_card=False)
 			pc += 1
-
+		draw_player_score = WINNER_FONT.render(str(player_hand.value), 1, WHITE)
+		WIN.blit(draw_player_score, PLAYER_SCORE_POS)
 		dc = 0
 		for card in dealer_hand.cards:
-			if (dc == 0) and (dealer_show == False):
+			if dc == 0 and dealer_show == False:
 				draw_card(card, dc, 0, hide_card=True)
 			else:
 				draw_card(card, dc, 0, hide_card=False) 
 			dc += 1
+		if dealer_show:
+			draw_dealer_score = WINNER_FONT.render(str(dealer_hand.value), 1, WHITE)
+			WIN.blit(draw_dealer_score, DEALER_SCORE_POS)
 
 	pygame.display.update()
 
-def main(player_chips):
-
-	player_score = player_chips.total
-	doubledown = False
-	clock = pygame.time.Clock()
-	run = True
-	_state = 'taking bets' 
-	bet = 0
-	dealer_show = False
-	winner_text = ''
-
+def setup_game(player_chips):
 	# Create & shuffle the deck, deal two cards to each player
 	deck = Deck()
 	deck.shuffle()
@@ -379,10 +301,24 @@ def main(player_chips):
 	player_hand = Hand()
 	player_hand.add_card(deck.deal())
 	player_hand.add_card(deck.deal())
-	
 	dealer_hand = Hand()
 	dealer_hand.add_card(deck.deal())
 	dealer_hand.add_card(deck.deal())
+
+	player_score = player_chips.total
+	doubledown = False
+	_state = 'taking bets' 
+	bet = 0
+	dealer_show = False
+	winner_text = ''
+
+	return player_hand, dealer_hand, deck, player_score, _state, bet, winner_text, dealer_show, doubledown
+
+def main(player_chips):
+
+	clock = pygame.time.Clock()
+	run = True
+	player_hand, dealer_hand, deck, player_score, _state, bet, winner_text, dealer_show, doubledown = setup_game(player_chips)
 
 	# GAME LOOP
 	while run:
@@ -391,8 +327,8 @@ def main(player_chips):
 
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:
-				run = False
 				pygame.quit()
+				run = False
 
 			if _state == 'taking bets':	
 				if event.type == pygame.MOUSEBUTTONDOWN:
@@ -415,11 +351,8 @@ def main(player_chips):
 							if 'BLACKJACK' in winner_text:
 								dealer_show = True
 								draw_window(player_hand, dealer_hand, player_chips, bet, dealer_show, winner_text, _state)
-								# Inform Player of their chips total 
-								print('\nYou have ${}'.format(player_chips.total))
 								time.sleep(3)
-								run = False
-								
+								player_hand, dealer_hand, deck, player_score, _state, bet, winner_text, dealer_show, doubledown = setup_game(player_chips)
 
 			if _state == 'playing':
 				if event.type == pygame.MOUSEBUTTONDOWN:
@@ -432,11 +365,8 @@ def main(player_chips):
 							winner_text = 'Player BUST!  Player Loses {}!'.format(str(bet))
 							dealer_show = True
 							draw_window(player_hand, dealer_hand, player_chips, bet, dealer_show, winner_text, _state)
-							# Inform Player of their chips total 
-							print('\nYou have ${}'.format(player_chips.total))
 							time.sleep(3)
-							run = False
-
+							player_hand, dealer_hand, deck, player_score, _state, bet, winner_text, dealer_show, doubledown = setup_game(player_chips)
 					# Clicked on the Stand Button
 					if STAND_BUTTON.collidepoint((mouse[0], mouse[1])):
 						# Play Dealer's hand until Dealer reaches 17
@@ -446,15 +376,26 @@ def main(player_chips):
 						winner_text = determine_winner(player_hand, dealer_hand, player_chips)
 						dealer_show = True
 						draw_window(player_hand, dealer_hand, player_chips, bet, dealer_show, winner_text, _state)
-						# Inform Player of their chips total 
-						print('\nYou have ${}'.format(player_chips.total))
 						time.sleep(3)
-						run = False
+						player_hand, dealer_hand, deck, player_score, _state, bet, winner_text, dealer_show, doubledown = setup_game(player_chips)
+					# Clicked on the Doubledown Button
+					if DD_BUTTON.collidepoint((mouse[0], mouse[1])):
+						if player_score > (bet * 2):
+							player_hand = hit(deck, player_hand)
+							player_chips.bet = player_chips.bet * 2
+							# Play Dealer's hand until Dealer reaches 17
+							if player_hand.value < 21 and dealer_hand.value < 21:
+								while dealer_hand.value < 17:
+									dealer_hand = hit(deck, dealer_hand)
+							winner_text = determine_winner(player_hand, dealer_hand, player_chips)
+							dealer_show = True
+							draw_window(player_hand, dealer_hand, player_chips, bet, dealer_show, winner_text, _state)
+							time.sleep(3)
+							player_hand, dealer_hand, deck, player_score, _state, bet, winner_text, dealer_show, doubledown = setup_game(player_chips)
+						else:
+							winner_text = "Not enough chips to double down"
 
 		draw_window(player_hand, dealer_hand, player_chips, bet, dealer_show, winner_text, _state)
-
-	main(player_chips)
-
 
 if __name__ == "__main__":
 	# Set up the Player's chips
