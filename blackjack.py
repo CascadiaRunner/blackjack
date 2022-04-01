@@ -191,6 +191,7 @@ def player_busts(player,dealer,chips):
 	return player_score
 
 def player_wins(player,dealer,chips):
+	player_score = chips.win_bet()
 	return player_score
 
 def player_blackjack(player,dealer,chips):
@@ -198,9 +199,11 @@ def player_blackjack(player,dealer,chips):
 	return player_score
 
 def dealer_busts(player,dealer,chips):
+	player_score = chips.win_bet()
 	return player_score
 	
 def dealer_wins(player,dealer,chips):
+	player_score = chips.lose_bet()
 	return player_score
 
 def dealer_blackjack(player,dealer,chips):
